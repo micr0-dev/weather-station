@@ -11,8 +11,10 @@ import (
 )
 
 type SensorData struct {
-	Temperature float64 `json:"temperature"`
-	Humidity    float64 `json:"humidity"`
+	Sensor      string  `json:"sensor"`
+	Temperature float64 `json:"temperature,omitempty"`
+	Humidity    float64 `json:"humidity,omitempty"`
+	Luminosity  uint16  `json:"luminosity,omitempty"`
 }
 
 func dataHandler(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +28,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	for _, entry := range data {
-		log.Printf("Received data: Temperature: %f, Humidity: %f at %s", entry.Temperature, entry.Humidity, time.Now().Format(time.RFC3339))
+		log.Printf("Received data from %s: %v at %s", entry.Sensor, entry, time.Now().Format(time.RFC3339))
 	}
 
 	w.WriteHeader(http.StatusOK)
