@@ -3,3 +3,29 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+kicad/*.000
+kicad/*.bak
+kicad/*.bck
+kicad/*.kicad_pcb-bak
+kicad/*.kicad_sch-bak
+kicad/*-backups
+kicad/*.kicad_prl
+kicad/*.sch-bak
+kicad/*~
+kicad/_autosave-*
+kicad/*.tmp
+kicad/*-save.pro
+kicad/*-save.kicad_pcb
+kicad/fp-info-cache
+
+# Netlist files (exported from Eeschema)
+kicad/*.net
+
+# Autorouter files (exported from Pcbnew)
+kicad/*.dsn
+kicad/*.ses
+
+# Exported BOM files
+kicad/*.xml
+kicad/*.csv
