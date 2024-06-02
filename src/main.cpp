@@ -2,6 +2,7 @@
 #include <HTTPClient.h>
 #include "Adafruit_SHT4x.h"
 #include "Adafruit_TSL2591.h"
+#include "Adafruit_CCS811.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -11,6 +12,7 @@ const char *serverUrl = "http://micr0.dev:8080/data";
 
 Adafruit_SHT4x sht4 = Adafruit_SHT4x();
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
+Adafruit_CCS811 ccs;
 
 // Buffer to hold collected data
 #define BUFFER_SIZE 5000 // Adjust size as necessary
@@ -19,7 +21,8 @@ SemaphoreHandle_t bufferMutex;
 
 // Sensor enable flags
 bool enableSHT4x = false;
-bool enableTSL2591 = true;
+bool enableTSL2591 = false;
+bool enableCCS811 = true;
 
 // Luminosity level
 uint8_t TSL2591level = 1;
@@ -46,7 +49,6 @@ void configureSensors()
 {
     if (enableSHT4x)
     {
-        Serial.println("Adafruit SHT4x test");
         if (!sht4.begin())
         {
             Serial.println("Couldn't find SHT4x");
@@ -74,22 +76,18 @@ void configureSensors()
         tsl.setGain(TSL2591_GAIN_MED);                // Default gain
         tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS); // Default integration time
     }
-}
 
-void configureTSL2591()
-{
-    tsl.setGain(TSL2591_GAIN_MED);                // Default gain
-    tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS); // Default integration time
-
-    Serial.println("------------------------------------");
-    Serial.print("Gain:          ");
-    tsl2591Gain_t gain = tsl.getGain();
-
-    Serial.print("Timing:        ");
-    Serial.print((tsl.getTiming() + 1) * 100, DEC);
-    Serial.println(" ms");
-    Serial.println("------------------------------------");
-    Serial.println("");
+    if (enableCCS811)
+    {
+        if (!ccs.begin())
+        {
+            Serial.println("Couldn't find CCS811");
+            while (1)
+                delay(1);
+        }
+        Serial.println("Found CCS811 sensor");
+        ccs.setDriveMode(CCS811_DRIVE_MODE_1SEC);
+    }
 }
 
 void adjustTSL2591Settings(uint16_t initLuminosity)
@@ -204,6 +202,37 @@ void collectDataTask(void *pvParameters)
                 }
                 dataBuffer += data;
                 xSemaphoreGive(bufferMutex);
+            }
+        }
+
+        if (enableCCS811)
+        {
+            if (ccs.available())
+            {
+                if (!ccs.readData())
+                {
+                    Serial.println("CCS811 read error");
+                }
+                else
+                {
+                    Serial.print("CO2: ");
+                    Serial.print(ccs.geteCO2());
+                    Serial.print(" ppm, TVOC: ");
+                    Serial.print(ccs.getTVOC());
+                    Serial.println(" ppb");
+
+                    // Collect data into buffer
+                    if (xSemaphoreTake(bufferMutex, portMAX_DELAY) == pdTRUE)
+                    {
+                        String data = "{\"sensor\":\"CCS811\", \"eCO2\": " + String(ccs.geteCO2()) + ", \"TVOC\": " + String(ccs.getTVOC()) + "}";
+                        if (dataBuffer.length() > 0)
+                        {
+                            dataBuffer += ",";
+                        }
+                        dataBuffer += data;
+                        xSemaphoreGive(bufferMutex);
+                    }
+                }
             }
         }
 
